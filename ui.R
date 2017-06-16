@@ -1,7 +1,7 @@
 library(leaflet)
 
 navbarPage(img(src='logo_eafit_completo.png', width=70, height=35), id="nav",
-  tabPanel("Home",
+  tabPanel("Centro de Egresados",
            h1("Centro de Egresados"),
            tags$video(src = "Línea del Tiempo - Centro de Egresados - Universidad EAFIT.mp4", type = "video/mp4", autoplay = NA, controls = NA)),
   tabPanel("Mapa Interactivo",
@@ -21,7 +21,9 @@ navbarPage(img(src='logo_eafit_completo.png', width=70, height=35), id="nav",
         width = 330, height = "auto",
 
         h2("Localizacion de los eafitences"),
-        sliderInput("year", "Año", min = 2001, max = 2017, value = 2001, animate = animationOptions(interval = 5000, loop = F))
+        sliderInput("year", "Año", min = 2001, max = 2017, value = 2001, animate = animationOptions(interval = 5000, loop = F)),
+        plotlyOutput("Gener", height = 200),
+        plotlyOutput("Carrera", height = 200)
       ),
 
       tags$div(id="cite",
@@ -33,7 +35,6 @@ navbarPage(img(src='logo_eafit_completo.png', width=70, height=35), id="nav",
   #tabPanel("Titulo",
   #         titlePanel("Titulo"),
   #         sliderInput("año", "Año", min = 2001, max = 2017, value = 2001, animate = animationOptions(interval = 5000, loop = F))
-  #         plotlyOutput("Gener", height = 200),
-  #         plotlyOutput("Carrera", height = 200)
+
   #)
 )

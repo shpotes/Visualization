@@ -5,14 +5,15 @@ library(RColorBrewer)
 library(scales)
 library(lattice)
 library(dplyr)
+library(plotly)
 
 # Leaflet bindings are a bit slow; for now we'll just sample to compensate
 set.seed(100)
 
 #By ordering by centile, we ensure that the (comparatively rare) SuperZIPs
 # will be drawn last and thus be easier to see
-data <- read.csv("../datafix.csv")
-foo <- split(data, data$Año.de.grado)
+data <- read.csv("~/Datviz/Concurso/datafix.csv")
+
 function(input, output, session) {
   ## Interactive Map ###########################################
   # Create the map
@@ -57,4 +58,5 @@ function(input, output, session) {
     plot_ly(df, y=~Freq, x =~Escuelas, type = "bar", alpha = 0.6)
     #plot_ly(as.data.frame(table(data$Carrera[data$Año.de.grado <= input$year])), x = ~Var1, y = ~Freq, type = 'histogram') 
   })
+  
 }
