@@ -8,19 +8,15 @@ library(dplyr)
 library(ggplot2)
 library(plotly)
 
-# Leaflet bindings are a bit slow; for now we'll just sample to compensate
-set.seed(100)
+## TODO
+# Implement Fenwick Tree to improve speed
 
-#By ordering by centile, we ensure that the (comparatively rare) SuperZIPs
-# will be drawn last and thus be easier to see
-data <- read.csv("~/Datviz/Concurso/datafix.csv")
+data <- read.csv("https://www.dropbox.com/s/s322kovz7u6s0cn/datafix.csv?dl=1")
 
 function(input, output, session) {
   ## Interactive Map ###########################################
   # Create the map
   output$map <- renderLeaflet({
-    # Year <- foo[[toString(input$year)]]
-    # View(Year)
     countries <- readOGR("countries.geojson.txt", "OGRGeoJSON")
     countries$eafit <- rep(0, 177)
     freq <- as.data.frame(table(
@@ -56,7 +52,7 @@ function(input, output, session) {
   })
 
   output$Carrera <- renderPlotly({
-    Carreras <- as.data.frame(table(data$Carrera[data$Año.de.grado <= 2006]))
+    Carreras <- as.data.frame(table(data$Carrera[data$Año.de.grado <= input$year]))
     df <- data.frame(Escuelas = c("Admin", "Ing", "Der", "Eco", "Sci"),
                      Freq = c(Reduce(`+`,Carreras[c(1,20,4,18),]$Freq),
                               Reduce(`+`,Carreras[c(9:13, 17),]$Freq),
