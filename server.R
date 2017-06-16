@@ -1,3 +1,5 @@
+library(sp)
+library(rgdal)
 library(leaflet)
 library(RColorBrewer)
 library(scales)
@@ -7,170 +9,52 @@ library(dplyr)
 # Leaflet bindings are a bit slow; for now we'll just sample to compensate
 set.seed(100)
 
-zipdata <- allzips[sample.int(nrow(allzips), 10000),]
-# By ordering by centile, we ensure that the (comparatively rare) SuperZIPs
+#By ordering by centile, we ensure that the (comparatively rare) SuperZIPs
 # will be drawn last and thus be easier to see
-zipdata <- zipdata[order(zipdata$centile),]
+data <- read.csv("../datafix.csv")
 foo <- split(data, data$Año.de.grado)
 function(input, output, session) {
-
   ## Interactive Map ###########################################
-
   # Create the map
-
   output$map <- renderLeaflet({
-    leaflet() %>%
-      addTiles(
-        urlTemplate = "//{s}.tiles.mapbox.com/v3/jcheng.map-5ebohr46/{z}/{x}/{y}.png",
-        attribution = 'Maps by <a href="http://www.mapbox.com/">Mapbox</a>'
-      ) %>%
-      setView(lng = 10, lat = 20, zoom = 3)
-  })
-
-  # A reactive expression that returns the set of zips that are
-  # in bounds right now
-  zipsInBounds <- reactive({
-    if (is.null(input$map_bounds))
-      return(zipdata[FALSE,])
-    bounds <- input$map_bounds
-    latRng <- range(bounds$north, bounds$south)
-    lngRng <- range(bounds$east, bounds$west)
-
-    subset(zipdata,
-      latitude >= latRng[1] & latitude <= latRng[2] &
-        longitude >= lngRng[1] & longitude <= lngRng[2])
-  })
-
-  # Precalculate the breaks we'll need for the two histograms
-  centileBreaks <- hist(plot = FALSE, allzips$centile, breaks = 20)$breaks
-
-  
-  output$Gener <- renderPlot({
-    index <- toString(input$year)
-    pie(table(foo[[index]]$Genero)) 
-    # If no zipcodes are in view, don't plot
+    # Year <- foo[[toString(input$year)]]
+    # View(Year)
+    countries <- readOGR("countries.geojson.txt", "OGRGeoJSON")
+    countries$eafit <- rep(0, 177)
+    freq <- as.data.frame(table(data$País.de.residencia.[data$Año.de.grado <= input$year]))
+    index <- match(c("Germany", "Argentina", "Australia",
+                     "China", "Colombia", "Costa Rica",
+                     "Denmark", "Spain", "United States",
+                     "France", "Guatemala", "Hungary", "Italy",
+                     "Mexico", "Netherlands", "Peru","United Kingdom"), countries$name)
+    countries$eafit[index] <- countries$eafit[index] + freq$Freq[-1]
     
+    state_popup <- paste0("<strong>Estado: </strong>", 
+                          countries$name, 
+                          "<br><strong>Numero de Egresados: </strong>", 
+                          countries$eafit)
+    
+    map <- leaflet(countries) %>% setView(lng = 10, lat = 20,  zoom = 2)
+    qpal <- function(y) unlist(Map( y == 0, f = function(x)(ifelse(x, "#F7FBFF", "#084594"))))
+    #print(qpal(countries$eafit))
+    map %>%
+      addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
+                color = ~qpal(eafit), popup = state_popup)
   })
   
-  output$event <- renderPrint({
-    d <- event_data("plotly_hover")
-    if (is.null(d)) "Hover on a point!" else d
+  output$Gener <- renderPlotly({
+    plot_ly(as.data.frame(table(data$Genero[data$Año.de.grado <= input$year])), labels = ~Var1, values = ~Freq, type = "pie") 
   })
-
-  # This observer is responsible for maintaining the circles and legend,
-  # according to the variables the user has chosen to map to color and size.
-  #observe({
-  #  colorBy <- "superzip"
-  #  sizeBy <- "centile"
-
-#    if (colorBy == "superzip") {
-      # Color and palette are treated specially in the "superzip" case, because
-      # the values are categorical instead of continuous.
-#      colorData <- ifelse(zipdata$centile >= (100 - input$threshold), "yes", "no")
-#      pal <- colorFactor("viridis", colorData)
-#    } else {
-#      colorData <- zipdata[[colorBy]]
-#      pal <- colorBin("viridis", colorData, 7, pretty = FALSE)
-#    }#
-
-#    if (sizeBy == "superzip") {
-#      # Radius is treated specially in the "superzip" case.
-#      radius <- ifelse(zipdata$centile >= (100 - input$threshold), 30000, 3000)
-#    } else {
-#      radius <- zipdata[[sizeBy]] / max(zipdata[[sizeBy]]) * 30000
-#    }
-
-#    leafletProxy("map", data = zipdata) %>%
-#      clearShapes() %>%
-#      addCircles(~longitude, ~latitude, radius=radius, layerId=~zipcode,
-#        stroke=FALSE, fillOpacity=0.4, fillColor=pal(colorData)) %>%
-#      addLegend("bottomleft", pal=pal, values=colorData, title=colorBy,
-#        layerId="colorLegend")
-#  })
-
-  # Show a popup at the given location
-  showZipcodePopup <- function(zipcode, lat, lng) {
-    selectedZip <- allzips[allzips$zipcode == zipcode,]
-    content <- as.character(tagList(
-      tags$h4("Score:", as.integer(selectedZip$centile)),
-      tags$strong(HTML(sprintf("%s, %s %s",
-        selectedZip$city.x, selectedZip$state.x, selectedZip$zipcode
-      ))), tags$br(),
-      sprintf("Median household income: %s", dollar(selectedZip$income * 1000)), tags$br(),
-      sprintf("Percent of adults with BA: %s%%", as.integer(selectedZip$college)), tags$br(),
-      sprintf("Adult population: %s", selectedZip$adultpop)
-    ))
-    leafletProxy("map") %>% addPopups(lng, lat, content, layerId = zipcode)
-  }
-
-  # When map is clicked, show a popup with city info
-  observe({
-    leafletProxy("map") %>% clearPopups()
-    event <- input$map_shape_click
-    if (is.null(event))
-      return()
-
-    isolate({
-      showZipcodePopup(event$id, event$lat, event$lng)
-    })
-  })
-
-
-  ## Data Explorer ###########################################
-
-  observe({
-    cities <- if (is.null(input$states)) character(0) else {
-      filter(cleantable, State %in% input$states) %>%
-        `$`('City') %>%
-        unique() %>%
-        sort()
-    }
-    stillSelected <- isolate(input$cities[input$cities %in% cities])
-    updateSelectInput(session, "cities", choices = cities,
-      selected = stillSelected)
-  })
-
-  observe({
-    zipcodes <- if (is.null(input$states)) character(0) else {
-      cleantable %>%
-        filter(State %in% input$states,
-          is.null(input$cities) | City %in% input$cities) %>%
-        `$`('Zipcode') %>%
-        unique() %>%
-        sort()
-    }
-    stillSelected <- isolate(input$zipcodes[input$zipcodes %in% zipcodes])
-    updateSelectInput(session, "zipcodes", choices = zipcodes,
-      selected = stillSelected)
-  })
-
-  observe({
-    if (is.null(input$goto))
-      return()
-    isolate({
-      map <- leafletProxy("map")
-      map %>% clearPopups()
-      dist <- 0.5
-      zip <- input$goto$zip
-      lat <- input$goto$lat
-      lng <- input$goto$lng
-      showZipcodePopup(zip, lat, lng)
-      map %>% fitBounds(lng - dist, lat - dist, lng + dist, lat + dist)
-    })
-  })
-
-  output$ziptable <- DT::renderDataTable({
-    df <- cleantable %>%
-      filter(
-        Score >= input$minScore,
-        Score <= input$maxScore,
-        is.null(input$states) | State %in% input$states,
-        is.null(input$cities) | City %in% input$cities,
-        is.null(input$zipcodes) | Zipcode %in% input$zipcodes
-      ) %>%
-      mutate(Action = paste('<a class="go-map" href="" data-lat="', Lat, '" data-long="', Long, '" data-zip="', Zipcode, '"><i class="fa fa-crosshairs"></i></a>', sep=""))
-    action <- DT::dataTableAjax(session, df)
-
-    DT::datatable(df, options = list(ajax = list(url = action)), escape = FALSE)
+  
+  output$Carrera <- renderPlotly({
+    Carreras <- as.data.frame(table(data$Carrera[data$Año.de.grado <= input$year]))
+    df <- data.frame(Escuelas = c("Admin", "Ing", "Der", "Eco", "Sci"),
+                     Freq = c(Reduce(`+`,Carreras[c(1,20,4,18),]$Freq),
+                              Reduce(`+`,Carreras[c(9:13, 17),]$Freq),
+                              Reduce(`+`,Carreras[5,]$Freq),
+                              Reduce(`+`,Carreras[6:7,]$Freq),
+                              Reduce(`+`,Carreras[c(14:16, 8),]$Freq)))
+    plot_ly(df, y=~Freq, x =~Escuelas, type = "bar", alpha = 0.6)
+    #plot_ly(as.data.frame(table(data$Carrera[data$Año.de.grado <= input$year])), x = ~Var1, y = ~Freq, type = 'histogram') 
   })
 }

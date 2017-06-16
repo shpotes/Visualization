@@ -1,7 +1,9 @@
 library(leaflet)
 
-navbarPage("EAFIT", id="nav",
-
+navbarPage(img(src='logo_eafit_completo.png', width=70, height=35), id="nav",
+  tabPanel("Home",
+           h1("Centro de Egresados"),
+           tags$video(src = "Línea del Tiempo - Centro de Egresados - Universidad EAFIT.mp4", type = "video/mp4", autoplay = NA, controls = NA)),
   tabPanel("Mapa Interactivo",
     div(class="outer",
 
@@ -16,46 +18,22 @@ navbarPage("EAFIT", id="nav",
       # Shiny versions prior to 0.11 should use class="modal" instead.
       absolutePanel(id = "controls", class = "panel panel-default", fixed = TRUE,
         draggable = TRUE, top = 60, left = "auto", right = 20, bottom = "auto",
-        width = 330, height = 600,
+        width = 330, height = "auto",
 
-        h2("EAFIT"),
-        sliderInput("year", "Año", 2001, 2017, 2001, animate = T),
-        plotOutput("Gener", height = 500)
+        h2("Localizacion de los eafitences"),
+        sliderInput("year", "Año", min = 2001, max = 2017, value = 2001, animate = animationOptions(interval = 5000, loop = F))
       ),
 
       tags$div(id="cite",
-        'Data compiled for ', tags$em('Coming Apart: The State of White America, 1960–2010'), ' by Charles Murray (Crown Forum, 2012).'
+        'Vigilada Mineducación.'
       )
     )
-  ),
+  )#,
 
-  tabPanel("Data explorer",
-    fluidRow(
-      column(3,
-        selectInput("states", "States", c("All states"="", structure(state.abb, names=state.name), "Washington, DC"="DC"), multiple=TRUE)
-      ),
-      column(3,
-        conditionalPanel("input.states",
-          selectInput("cities", "Cities", c("All cities"=""), multiple=TRUE)
-        )
-      ),
-      column(3,
-        conditionalPanel("input.states",
-          selectInput("zipcodes", "Zipcodes", c("All zipcodes"=""), multiple=TRUE)
-        )
-      )
-    ),
-    fluidRow(
-      column(1,
-        numericInput("minScore", "Min score", min=0, max=100, value=0)
-      ),
-      column(1,
-        numericInput("maxScore", "Max score", min=0, max=100, value=100)
-      )
-    ),
-    hr(),
-    DT::dataTableOutput("ziptable")
-  ),
-
-  conditionalPanel("false", icon("crosshair"))
+  #tabPanel("Titulo",
+  #         titlePanel("Titulo"),
+  #         sliderInput("año", "Año", min = 2001, max = 2017, value = 2001, animate = animationOptions(interval = 5000, loop = F))
+  #         plotlyOutput("Gener", height = 200),
+  #         plotlyOutput("Carrera", height = 200)
+  #)
 )
