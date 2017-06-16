@@ -6,23 +6,25 @@ library(dplyr)
 
 # Leaflet bindings are a bit slow; for now we'll just sample to compensate
 set.seed(100)
+
 zipdata <- allzips[sample.int(nrow(allzips), 10000),]
 # By ordering by centile, we ensure that the (comparatively rare) SuperZIPs
 # will be drawn last and thus be easier to see
 zipdata <- zipdata[order(zipdata$centile),]
-
+foo <- split(data, data$Año.de.grado)
 function(input, output, session) {
 
   ## Interactive Map ###########################################
 
   # Create the map
+
   output$map <- renderLeaflet({
     leaflet() %>%
       addTiles(
         urlTemplate = "//{s}.tiles.mapbox.com/v3/jcheng.map-5ebohr46/{z}/{x}/{y}.png",
         attribution = 'Maps by <a href="http://www.mapbox.com/">Mapbox</a>'
       ) %>%
-      setView(lng = -93.85, lat = 37.45, zoom = 4)
+      setView(lng = 10, lat = 20, zoom = 3)
   })
 
   # A reactive expression that returns the set of zips that are
@@ -42,58 +44,49 @@ function(input, output, session) {
   # Precalculate the breaks we'll need for the two histograms
   centileBreaks <- hist(plot = FALSE, allzips$centile, breaks = 20)$breaks
 
-  output$histCentile <- renderPlot({
+  
+  output$Gener <- renderPlot({
+    index <- toString(input$year)
+    pie(table(foo[[index]]$Genero)) 
     # If no zipcodes are in view, don't plot
-    if (nrow(zipsInBounds()) == 0)
-      return(NULL)
-
-    hist(zipsInBounds()$centile,
-      breaks = centileBreaks,
-      main = "SuperZIP score (visible zips)",
-      xlab = "Percentile",
-      xlim = range(allzips$centile),
-      col = '#00DD00',
-      border = 'white')
+    
   })
-
-  output$scatterCollegeIncome <- renderPlot({
-    # If no zipcodes are in view, don't plot
-    if (nrow(zipsInBounds()) == 0)
-      return(NULL)
-
-    print(xyplot(income ~ college, data = zipsInBounds(), xlim = range(allzips$college), ylim = range(allzips$income)))
+  
+  output$event <- renderPrint({
+    d <- event_data("plotly_hover")
+    if (is.null(d)) "Hover on a point!" else d
   })
 
   # This observer is responsible for maintaining the circles and legend,
   # according to the variables the user has chosen to map to color and size.
-  observe({
-    colorBy <- "superzip"
-    sizeBy <- "centile"
+  #observe({
+  #  colorBy <- "superzip"
+  #  sizeBy <- "centile"
 
-    if (colorBy == "superzip") {
+#    if (colorBy == "superzip") {
       # Color and palette are treated specially in the "superzip" case, because
       # the values are categorical instead of continuous.
-      colorData <- ifelse(zipdata$centile >= (100 - input$threshold), "yes", "no")
-      pal <- colorFactor("viridis", colorData)
-    } else {
-      colorData <- zipdata[[colorBy]]
-      pal <- colorBin("viridis", colorData, 7, pretty = FALSE)
-    }
+#      colorData <- ifelse(zipdata$centile >= (100 - input$threshold), "yes", "no")
+#      pal <- colorFactor("viridis", colorData)
+#    } else {
+#      colorData <- zipdata[[colorBy]]
+#      pal <- colorBin("viridis", colorData, 7, pretty = FALSE)
+#    }#
 
-    if (sizeBy == "superzip") {
-      # Radius is treated specially in the "superzip" case.
-      radius <- ifelse(zipdata$centile >= (100 - input$threshold), 30000, 3000)
-    } else {
-      radius <- zipdata[[sizeBy]] / max(zipdata[[sizeBy]]) * 30000
-    }
+#    if (sizeBy == "superzip") {
+#      # Radius is treated specially in the "superzip" case.
+#      radius <- ifelse(zipdata$centile >= (100 - input$threshold), 30000, 3000)
+#    } else {
+#      radius <- zipdata[[sizeBy]] / max(zipdata[[sizeBy]]) * 30000
+#    }
 
-    leafletProxy("map", data = zipdata) %>%
-      clearShapes() %>%
-      addCircles(~longitude, ~latitude, radius=radius, layerId=~zipcode,
-        stroke=FALSE, fillOpacity=0.4, fillColor=pal(colorData)) %>%
-      addLegend("bottomleft", pal=pal, values=colorData, title=colorBy,
-        layerId="colorLegend")
-  })
+#    leafletProxy("map", data = zipdata) %>%
+#      clearShapes() %>%
+#      addCircles(~longitude, ~latitude, radius=radius, layerId=~zipcode,
+#        stroke=FALSE, fillOpacity=0.4, fillColor=pal(colorData)) %>%
+#      addLegend("bottomleft", pal=pal, values=colorData, title=colorBy,
+#        layerId="colorLegend")
+#  })
 
   # Show a popup at the given location
   showZipcodePopup <- function(zipcode, lat, lng) {

@@ -16,17 +16,16 @@ navbarPage("EAFIT", id="nav",
       # Shiny versions prior to 0.11 should use class="modal" instead.
       absolutePanel(id = "controls", class = "panel panel-default", fixed = TRUE,
         draggable = TRUE, top = 60, left = "auto", right = 20, bottom = "auto",
-        width = 330, height = "auto",
+        width = 330, height = 600,
 
         h2("EAFIT"),
-        sliderInput("year", "Año", 1987, 2017, 1987, animate = T),
-        plotOutput("histCentile", height = 200),
-        plotOutput("scatterCollegeIncome", height = 250)
-      )#,
+        sliderInput("year", "Año", 2001, 2017, 2001, animate = T),
+        plotOutput("Gener", height = 500)
+      ),
 
-      #tags$div(id="cite",
-      #  'Data compiled for ', tags$em('Coming Apart: The State of White America, 1960–2010'), ' by Charles Murray (Crown Forum, 2012).'
-      #)
+      tags$div(id="cite",
+        'Data compiled for ', tags$em('Coming Apart: The State of White America, 1960–2010'), ' by Charles Murray (Crown Forum, 2012).'
+      )
     )
   ),
 
